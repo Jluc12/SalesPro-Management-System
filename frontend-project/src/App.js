@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import './index.css';
 
+const Landing = lazy(() => import('./pages/Landing'));
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Customers = lazy(() => import('./pages/Customers'));
@@ -41,7 +42,7 @@ class ErrorBoundary extends Component {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
           <div className="text-center">
-            <div className="text-5xl mb-4">⚠️</div>
+            <div className="text-5xl mb-4">&#9888;&#65039;</div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Something went wrong</h2>
             <p className="text-gray-500 mb-4">An unexpected error occurred</p>
             <button
@@ -63,13 +64,14 @@ function AppRoutes() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/customers" element={<PrivateRoute><Customers /></PrivateRoute>} />
         <Route path="/products" element={<PrivateRoute><Products /></PrivateRoute>} />
         <Route path="/sales" element={<PrivateRoute><Sales /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Suspense>
   );
