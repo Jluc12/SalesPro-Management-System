@@ -1,0 +1,24 @@
+{
+  "name": "salepro-srms-backend",
+  "version": "2.0.0",
+  "description": "SalePro SRMS - Sales Record Management System Backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node seed.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["sales", "management", "srms", "express", "api"],
+  "author": "SalePro Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.4"
+  }
+}
