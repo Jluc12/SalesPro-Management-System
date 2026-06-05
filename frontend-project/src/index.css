@@ -2,63 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+  }
 }
 
-body {
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
+    will-change: transform, opacity;
   }
 
   .animate-slide-up {
     animation: slideUp 0.4s ease-out;
+    will-change: transform, opacity;
   }
 
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out;
+    will-change: transform, opacity;
   }
 
   .card-hover {
     @apply transition-all duration-200;
+    will-change: transform;
   }
 
   .card-hover:hover {
     @apply shadow-lg -translate-y-0.5;
-  }
-
-  .input-focus {
-    @apply transition-all duration-200 ease-in-out;
-  }
-
-  .input-focus:focus {
-    @apply ring-2 ring-blue-500 border-blue-500 shadow-sm;
   }
 }
 
@@ -77,23 +65,7 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes pulse-dot {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-.loading-dot {
-  animation: pulse-dot 1.4s infinite ease-in-out both;
-}
-
-.loading-dot:nth-child(1) { animation-delay: -0.32s; }
-.loading-dot:nth-child(2) { animation-delay: -0.16s; }
-
 @media print {
   .no-print { display: none !important; }
-  .print-only { display: block !important; }
-}
-
-@page {
-  margin: 1.5cm;
+  @page { margin: 1.5cm; }
 }

@@ -1,12 +1,34 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api';
 
 const PAYMENT_METHODS = ['Cash', 'Mobile Money', 'Bank Transfer', 'Card'];
-const emptyForm = { customerNumber: '', productCode: '', salesDate: new Date().toISOString().split('T')[0], paymentMethod: 'Cash', totalAmountPaid: '' };
+const PAGE_SIZE = 10;
+
+const emptyForm = {
+  customerNumber: '',
+  productCode: '',
+  salesDate: new Date().toISOString().split('T')[0],
+  paymentMethod: 'Cash',
+  totalAmountPaid: '',
+};
+
+const PAYMENT_BADGES = {
+  'Cash': 'bg-green-50 text-green-700',
+  'Mobile Money': 'bg-blue-50 text-blue-700',
+  'Bank Transfer': 'bg-purple-50 text-purple-700',
+  'Card': 'bg-orange-50 text-orange-700',
+};
+
+function getPaymentBadge(method) {
+  return PAYMENT_BADGES[method] || 'bg-gray-50 text-gray-700';
+}
+
+const fmt = (n) => new Intl.NumberFormat('en-RW').format(n);
 
 export default function Sales() {
   const [sales, setSales] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 0, total: 0 });
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -15,16 +37,23 @@ export default function Sales() {
   const [fetching, setFetching] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const fetchAll = useCallback(() => {
-    setFetching(true);
-    Promise.all([
-      API.get('/sales').then(res => setSales(res.data)),
-      API.get('/customers').then(res => setCustomers(res.data)),
-      API.get('/products').then(res => setProducts(res.data)),
-    ]).catch(() => {}).finally(() => setFetching(false));
+  const fetchListData = useCallback(() => {
+    API.get('/customers/all').then(res => setCustomers(res.data)).catch(() => {});
+    API.get('/products/all').then(res => setProducts(res.data)).catch(() => {});
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const fetchSales = useCallback((page = 1) => {
+    setFetching(true);
+    API.get(`/sales?page=${page}&limit=${PAGE_SIZE}`)
+      .then(res => {
+        setSales(res.data.data);
+        setPagination(res.data.pagination);
+      })
+      .catch(() => {})
+      .finally(() => setFetching(false));
+  }, []);
+
+  useEffect(() => { fetchSales(); fetchListData(); }, [fetchSales, fetchListData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +73,7 @@ export default function Sales() {
       }
       setForm(emptyForm);
       setEditId(null);
-      fetchAll();
+      fetchSales(1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error saving sale');
     } finally {
@@ -52,7 +81,7 @@ export default function Sales() {
     }
   };
 
-  const handleEdit = (sale) => {
+  const handleEdit = useCallback((sale) => {
     setEditId(sale.invoiceNumber);
     setForm({
       customerNumber: sale.customerNumber,
@@ -62,14 +91,14 @@ export default function Sales() {
       totalAmountPaid: sale.totalAmountPaid,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   const handleDelete = async (id) => {
     try {
       await API.delete(`/sales/${id}`);
       toast.success('Sale deleted successfully');
       setConfirmDelete(null);
-      fetchAll();
+      fetchSales(1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error deleting sale');
     }
@@ -80,16 +109,50 @@ export default function Sales() {
     setEditId(null);
   };
 
-  const fmt = (n) => new Intl.NumberFormat('en-RW').format(n);
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      fetchSales(page);
+    }
+  };
 
-  const getPaymentBadge = (method) => {
-    const colors = {
-      'Cash': 'bg-green-50 text-green-700',
-      'Mobile Money': 'bg-blue-50 text-blue-700',
-      'Bank Transfer': 'bg-purple-50 text-purple-700',
-      'Card': 'bg-orange-50 text-orange-700',
-    };
-    return colors[method] || 'bg-gray-50 text-gray-700';
+  const renderPagination = () => {
+    if (pagination.totalPages <= 1) return null;
+    const pages = [];
+    const start = Math.max(1, pagination.page - 2);
+    const end = Math.min(pagination.totalPages, pagination.page + 2);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+        <span className="text-xs text-gray-400">{pagination.total} total transactions</span>
+        <div className="flex gap-1">
+          <button
+            disabled={pagination.page <= 1}
+            onClick={() => handlePageChange(pagination.page - 1)}
+            className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Prev
+          </button>
+          {pages.map(p => (
+            <button
+              key={p}
+              onClick={() => handlePageChange(p)}
+              className={`px-3 py-1 text-xs rounded border transition-all ${
+                p === pagination.page ? 'bg-purple-600 text-white border-purple-600' : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => handlePageChange(pagination.page + 1)}
+            className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -102,7 +165,6 @@ export default function Sales() {
         <span className="text-3xl">🛒</span>
       </div>
 
-      {/* Form */}
       <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6 ${editId ? 'ring-2 ring-purple-200' : ''}`}>
         <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${editId ? 'bg-yellow-50 text-yellow-600' : 'bg-purple-50 text-purple-600'}`}>
@@ -201,10 +263,9 @@ export default function Sales() {
         </form>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-4 border-b border-gray-100">
-          <span className="text-xs text-gray-400">{sales.length} transaction{sales.length !== 1 && 's'}</span>
+          <span className="text-xs text-gray-400">{pagination.total} transaction{pagination.total !== 1 && 's'}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -250,9 +311,9 @@ export default function Sales() {
             </tbody>
           </table>
         </div>
+        {renderPagination()}
       </div>
 
-      {/* Delete confirmation modal */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4 animate-scale-in">

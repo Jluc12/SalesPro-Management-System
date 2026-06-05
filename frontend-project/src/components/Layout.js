@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -50,33 +50,55 @@ const navItems = [
   },
 ];
 
-export default function Layout({ children }) {
+const NavItem = memo(({ item, sidebarOpen, onClick }) => (
+  <NavLink
+    to={item.to}
+    onClick={onClick}
+    className={({ isActive }) =>
+      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+        isActive
+          ? 'bg-blue-600/20 text-blue-300 border border-blue-500/20 shadow-sm'
+          : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+      }`
+    }
+  >
+    <span className="shrink-0">{item.icon}</span>
+    <span className={`${!sidebarOpen && 'lg:hidden'} truncate`}>{item.label}</span>
+  </NavLink>
+));
+
+const Layout = memo(function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/login');
-  };
+  }, [logout, navigate]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
+
+  const closeSidebar = useCallback(() => {
+    setSidebarOpen(false);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-16'
         } fixed lg:static z-30 inset-y-0 left-0 w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col transition-all duration-300 ease-in-out`}
       >
-        {/* Logo */}
         <div className="flex items-center justify-between px-5 h-16 border-b border-slate-700/50 shrink-0">
           <div className={`flex items-center gap-3 ${!sidebarOpen && 'lg:hidden'}`}>
             <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
@@ -88,7 +110,7 @@ export default function Layout({ children }) {
             </div>
           </div>
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={toggleSidebar}
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-700/50 hidden lg:block"
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
@@ -98,32 +120,21 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
-            <NavLink
+            <NavItem
               key={item.to}
-              to={item.to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-blue-600/20 text-blue-300 border border-blue-500/20 shadow-sm'
-                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                }`
-              }
-            >
-              <span className="shrink-0">{item.icon}</span>
-              <span className={`${!sidebarOpen && 'lg:hidden'} truncate`}>{item.label}</span>
-            </NavLink>
+              item={item}
+              sidebarOpen={sidebarOpen}
+              onClick={closeSidebar}
+            />
           ))}
         </nav>
 
-        {/* User section */}
         <div className="border-t border-slate-700/50 px-4 py-3">
           <div className={`flex items-center gap-3 mb-2 ${!sidebarOpen && 'lg:hidden'}`}>
             <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow">
-              {user?.username?.charAt(0).toUpperCase() || 'U'}
+              {user?.username?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user?.username}</p>
@@ -142,9 +153,7 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar (mobile) */}
         <div className="lg:hidden flex items-center justify-between px-4 h-14 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow">
@@ -153,7 +162,7 @@ export default function Layout({ children }) {
             <h1 className="font-semibold text-gray-800 text-sm">SalePro</h1>
           </div>
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={toggleSidebar}
             className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +171,6 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        {/* Page content */}
         <main className="flex-1 overflow-auto bg-gray-50">
           <div className="p-4 md:p-6 lg:p-8 animate-fade-in">
             {children}
@@ -171,4 +179,6 @@ export default function Layout({ children }) {
       </div>
     </div>
   );
-}
+});
+
+export default Layout;

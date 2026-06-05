@@ -1,17 +1,33 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api';
 
+const PAGE_SIZE = 10;
+
 export default function Products() {
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 0, total: 0 });
   const [form, setForm] = useState({ productName: '', quantitySold: '', unitPrice: '' });
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimer = useRef(null);
 
-  const fetchProducts = useCallback(() => {
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  const fetchProducts = useCallback((page = 1) => {
     setFetching(true);
-    API.get('/products').then(res => setProducts(res.data)).catch(() => {})
+    API.get(`/products?page=${page}&limit=${PAGE_SIZE}`)
+      .then(res => {
+        setProducts(res.data.data);
+        setPagination(res.data.pagination);
+      })
+      .catch(() => {})
       .finally(() => setFetching(false));
   }, []);
 
@@ -34,7 +50,7 @@ export default function Products() {
       await API.post('/products', { productName: form.productName.trim(), quantitySold: qty, unitPrice: price });
       toast.success('Product added successfully!');
       setForm({ productName: '', quantitySold: '', unitPrice: '' });
-      fetchProducts();
+      fetchProducts(1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error adding product');
     } finally {
@@ -42,9 +58,63 @@ export default function Products() {
     }
   };
 
-  const filtered = products.filter(p =>
-    !search || p.productName.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(() =>
+    products.filter(p =>
+      !debouncedSearch || p.productName.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ),
+    [products, debouncedSearch]
   );
+
+  const displayData = useMemo(() =>
+    debouncedSearch ? filtered : products,
+    [debouncedSearch, filtered, products]
+  );
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      fetchProducts(page);
+    }
+  };
+
+  const renderPagination = () => {
+    if (pagination.totalPages <= 1 || debouncedSearch) return null;
+    const pages = [];
+    const start = Math.max(1, pagination.page - 2);
+    const end = Math.min(pagination.totalPages, pagination.page + 2);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+        <span className="text-xs text-gray-400">{pagination.total} total products</span>
+        <div className="flex gap-1">
+          <button
+            disabled={pagination.page <= 1}
+            onClick={() => handlePageChange(pagination.page - 1)}
+            className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Prev
+          </button>
+          {pages.map(p => (
+            <button
+              key={p}
+              onClick={() => handlePageChange(p)}
+              className={`px-3 py-1 text-xs rounded border transition-all ${
+                p === pagination.page ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => handlePageChange(pagination.page + 1)}
+            className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const fmt = (n) => new Intl.NumberFormat('en-RW').format(n);
 
@@ -59,7 +129,6 @@ export default function Products() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Form */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -73,7 +142,7 @@ export default function Products() {
                   value={form.productName}
                   onChange={e => setForm({ ...form, productName: e.target.value })}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                  placeholder="Samsung TV 43\"" required
+                  placeholder='Samsung TV 43"' required
                 />
               </div>
               <div>
@@ -111,7 +180,6 @@ export default function Products() {
           </div>
         </div>
 
-        {/* Table */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="p-4 border-b border-gray-100">
@@ -128,7 +196,7 @@ export default function Products() {
                     className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
-                <span className="text-xs text-gray-400">{filtered.length} product{filtered.length !== 1 && 's'}</span>
+                <span className="text-xs text-gray-400">{displayData.length} product{displayData.length !== 1 && 's'}</span>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -143,11 +211,11 @@ export default function Products() {
                 <tbody>
                   {fetching ? (
                     <tr><td colSpan={6} className="text-center py-12"><span className="text-gray-400">Loading...</span></td></tr>
-                  ) : filtered.length === 0 ? (
+                  ) : displayData.length === 0 ? (
                     <tr><td colSpan={6} className="text-center py-12 text-gray-400">No products found.</td></tr>
-                  ) : filtered.map((p, i) => (
+                  ) : displayData.map((p, i) => (
                     <tr key={p.productCode} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{(pagination.page - 1) * PAGE_SIZE + i + 1}</td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs">P{String(p.productCode).padStart(4, '0')}</span>
                       </td>
@@ -162,6 +230,7 @@ export default function Products() {
                 </tbody>
               </table>
             </div>
+            {renderPagination()}
           </div>
         </div>
       </div>

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import API from '../services/api';
 
-const StatCard = ({ label, value, icon, color, bgColor }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover animate-slide-up`}>
+const StatCard = React.memo(({ label, value, icon, bgColor }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 card-hover animate-slide-up">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-500">{label}</p>
@@ -13,13 +13,13 @@ const StatCard = ({ label, value, icon, color, bgColor }) => (
       </div>
     </div>
   </div>
-);
+));
 
 function LoadingSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {[...Array(4)].map((_, i) => (
+        {[1, 2, 3, 4].map(i => (
           <div key={i} className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
@@ -35,6 +35,8 @@ function LoadingSkeleton() {
   );
 }
 
+const fmt = (n) => new Intl.NumberFormat('en-RW').format(n || 0);
+
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,14 +50,14 @@ export default function Dashboard() {
     return () => { mounted = false; };
   }, []);
 
-  const fmt = (n) => new Intl.NumberFormat('en-RW').format(n || 0);
+  const statCards = useMemo(() => [
+    { label: 'Total Customers', value: summary?.customers || 0, icon: '👥', bgColor: 'bg-blue-50' },
+    { label: 'Total Products', value: summary?.products || 0, icon: '📦', bgColor: 'bg-green-50' },
+    { label: 'Total Sales', value: summary?.sales || 0, icon: '🛒', bgColor: 'bg-purple-50' },
+    { label: 'Revenue (RWF)', value: `RWF ${fmt(summary?.revenue)}`, icon: '💰', bgColor: 'bg-yellow-50' },
+  ], [summary]);
 
-  const statCards = [
-    { label: 'Total Customers', value: summary?.customers || 0, icon: '👥', color: 'border-blue-500', bgColor: 'bg-blue-50' },
-    { label: 'Total Products', value: summary?.products || 0, icon: '📦', color: 'border-green-500', bgColor: 'bg-green-50' },
-    { label: 'Total Sales', value: summary?.sales || 0, icon: '🛒', color: 'border-purple-500', bgColor: 'bg-purple-50' },
-    { label: 'Revenue (RWF)', value: `RWF ${fmt(summary?.revenue)}`, icon: '💰', color: 'border-yellow-500', bgColor: 'bg-yellow-50' },
-  ];
+  const topProducts = useMemo(() => summary?.topProducts || [], [summary]);
 
   return (
     <div>
@@ -83,7 +85,7 @@ export default function Dashboard() {
               <span className="text-3xl">🏆</span>
             </div>
 
-            {summary?.topProducts?.length > 0 ? (
+            {topProducts.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -94,8 +96,8 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {summary.topProducts.map((p, i) => (
-                      <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                    {topProducts.map((p, i) => (
+                      <tr key={p.productName + i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
                         <td className="py-3 text-gray-800">
                           <div className="flex items-center gap-2">
                             <span className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-semibold text-gray-500">{i + 1}</span>

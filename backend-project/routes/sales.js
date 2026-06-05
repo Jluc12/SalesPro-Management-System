@@ -3,9 +3,12 @@ const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middleware/auth');
 
-// GET all sales (with customer & product names)
 router.get('/', auth, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = (page - 1) * limit;
   try {
+    const [[{ total }]] = await db.query('SELECT COUNT(*) as total FROM Sale');
     const [rows] = await db.query(`
       SELECT s.invoiceNumber, s.salesDate, s.paymentMethod, s.totalAmountPaid,
              c.firstName, c.lastName, c.telephone,
@@ -14,14 +17,17 @@ router.get('/', auth, async (req, res) => {
       JOIN Customer c ON s.customerNumber = c.customerNumber
       JOIN Product p ON s.productCode = p.productCode
       ORDER BY s.salesDate DESC
-    `);
-    res.json(rows);
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
+    res.json({
+      data: rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// GET single sale
 router.get('/:id', auth, async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -38,7 +44,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// POST - INSERT new sale
 router.post('/', auth, async (req, res) => {
   const { customerNumber, productCode, salesDate, paymentMethod, totalAmountPaid } = req.body;
   if (!customerNumber || !productCode || !salesDate || !paymentMethod || !totalAmountPaid)
@@ -55,7 +60,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT - UPDATE sale
 router.put('/:id', auth, async (req, res) => {
   const { customerNumber, productCode, salesDate, paymentMethod, totalAmountPaid } = req.body;
   try {
@@ -70,7 +74,6 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE sale
 router.delete('/:id', auth, async (req, res) => {
   try {
     const [result] = await db.query('DELETE FROM Sale WHERE invoiceNumber = ?', [req.params.id]);

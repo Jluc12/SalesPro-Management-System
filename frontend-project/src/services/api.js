@@ -3,6 +3,7 @@ import axios from 'axios';
 const API = axios.create({
   baseURL: 'http://localhost:5000/api',
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
 });
 
 API.interceptors.request.use((config) => {
@@ -20,6 +21,9 @@ API.interceptors.response.use(
       localStorage.removeItem('srms_token');
       localStorage.removeItem('srms_user');
       window.location.href = '/login';
+    }
+    if (error.code === 'ECONNABORTED') {
+      console.warn('Request timed out');
     }
     return Promise.reject(error);
   }
